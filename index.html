@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Trebuchet</title>
+  <meta name="description" content="Trebuchet — a medieval siege physics game. Hurl rocks, topple castles, defeat the knights.">
+  <meta name="theme-color" content="#2b1a0e">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Trebuchet">
+  <meta property="og:title" content="Trebuchet">
+  <meta property="og:description" content="Hurl rocks, topple castles, defeat the knights.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=MedievalSharp&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game" aria-label="Trebuchet game"></canvas>
+
+  <div id="hud" hidden>
+    <div class="hud-left">
+      <button id="btn-pause" class="icon-btn" aria-label="Pause">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+      </button>
+      <div id="hud-level" class="hud-chip"></div>
+    </div>
+    <div class="hud-chip hud-score"><span id="hud-score">0</span></div>
+    <div class="hud-right">
+      <button id="btn-restart" class="icon-btn" aria-label="Restart level">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7a5 5 0 11-5 5H5a7 7 0 107-7z"/></svg>
+      </button>
+      <button id="btn-mute" class="icon-btn" aria-label="Mute">
+        <svg class="snd-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4zM14 3.2v2.1a7 7 0 010 13.4v2.1a9 9 0 000-17.6z"/></svg>
+        <svg class="snd-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm15.6 3l2.2-2.2-1.4-1.4-2.2 2.2-2.2-2.2-1.4 1.4 2.2 2.2-2.2 2.2 1.4 1.4 2.2-2.2 2.2 2.2 1.4-1.4z"/></svg>
+      </button>
+    </div>
+  </div>
+  <div id="hint"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <section id="screen-title" class="screen">
+    <div class="panel title-panel">
+      <div class="crest" aria-hidden="true">
+        <svg viewBox="0 0 64 64"><path d="M32 4l24 8v18c0 15-10 25-24 30C18 55 8 45 8 30V12z" fill="#9b2226" stroke="#4a1a10" stroke-width="3"/><path d="M20 46V26h4v4h4v-4h8v4h4v-4h4v20z" fill="#e3b341" stroke="#7a5a10" stroke-width="1.5" stroke-linejoin="round"/><path d="M29 46v-7a3 3 0 016 0v7z" fill="#4a1a10"/></svg>
+      </div>
+      <h1 class="logo">Trebuchet</h1>
+      <p class="tagline">Hurl stone. Topple towers. Humble the knights.</p>
+      <div class="btn-col">
+        <button id="btn-play" class="btn primary">Play</button>
+        <button id="btn-install" class="btn" hidden>Install Game</button>
+      </div>
+      <p id="ios-hint" class="small" hidden>To install on iPhone or iPad: tap <b>Share</b>, then <b>Add to Home Screen</b>.</p>
+      <p class="small how">Drag the rock back from the sling and release. Tap mid-flight to unleash special shots.</p>
+    </div>
+  </section>
+
+  <section id="screen-levels" class="screen" hidden>
+    <div class="panel levels-panel">
+      <h2>Choose a Siege</h2>
+      <p class="small">Stars earned: <b id="total-stars">0</b></p>
+      <div id="set-tabs" class="set-tabs" role="group" aria-label="Level sets"></div>
+      <div id="level-grid" class="level-grid"></div>
+      <div class="btn-row">
+        <button id="btn-levels-back" class="btn">Back</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-pause" class="screen" hidden>
+    <div class="panel small-panel">
+      <h2>Paused</h2>
+      <div class="btn-col">
+        <button id="btn-resume" class="btn primary">Resume</button>
+        <button id="btn-pause-restart" class="btn">Restart</button>
+        <button id="btn-pause-levels" class="btn">Levels</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-result" class="screen" hidden>
+    <div class="panel small-panel">
+      <h2 id="result-title">Victory!</h2>
+      <p id="result-sub" class="small"></p>
+      <div id="result-stars" class="result-stars"></div>
+      <div class="result-score" id="result-score">0</div>
+      <p id="result-best" class="small"></p>
+      <div class="btn-row">
+        <button id="btn-result-levels" class="btn">Levels</button>
+        <button id="btn-retry" class="btn">Retry</button>
+        <button id="btn-next" class="btn primary">Next</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="vendor/matter.min.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/levels-gen.js"></script>
+  <script src="js/game.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+  </script>
+</body>
+</html>
