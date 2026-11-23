@@ -13,7 +13,7 @@ A medieval siege physics game for the browser. Load your trebuchet, fling rocks 
 
 | Action | How |
 | --- | --- |
-| Aim and fire | Drag the rock in the sling back, then let go. The dotted arc shows the path. |
+| Aim and fire | Press on the sling and draw back. The arm winches down as power builds, the quadrant shows the angle, and an inked line shows the flight. Let go to fire. |
 | Special shot | Tap anywhere while the rock is in the air |
 | Look around | Drag the background left or right |
 | Pause / restart | Buttons in the top corners, or `Esc` and `R` |
@@ -90,4 +90,4 @@ Each level in [`js/levels.js`](js/levels.js) is a list of pieces built with smal
 }
 ```
 
-Materials are `wood`, `stone`, and `straw`. Foes are `soldier`, `knight`, and `king`. Stars depend on how many rocks you have left when the last foe falls: 2 or more earns ★★★, 1 earns ★★, and 0 earns ★.
+Materials are `wood`, `stone`, and `straw`. Foes are `soldier`, `knight`, and `king`. A foe is defeated when it takes enough damage or is knocked flat and left lying. Each level awards up to three wax seals, based on how many rocks you have left when the last foe falls: 2 or more earns 3 seals, 1 earns 2, and 0 earns 1.

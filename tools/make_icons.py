@@ -12,12 +12,13 @@ from PIL import Image, ImageDraw
 OUT = os.path.join(os.path.dirname(__file__), '..', 'icons')
 S = 512
 
-SKY_TOP, SKY_BOTTOM = (59, 91, 140), (240, 163, 94)
-SUN = (255, 222, 140)
-INK = (43, 26, 14)
-ROCK = (125, 127, 132)
+SKY_TOP, SKY_BOTTOM = (214, 216, 208), (239, 226, 194)  # parchment with a faint woad wash
+SUN = (217, 169, 59)
+INK = (42, 29, 20)
+HILL = (111, 154, 85)
+ROCK = (163, 158, 146)
 ROCK_EDGE = (47, 48, 52)
-BANNER = (155, 34, 38)
+BANNER = (168, 50, 45)
 
 PIVOT = (215, 262)
 TIP_A = math.radians(-58)
@@ -55,10 +56,15 @@ def png(size, path):
     gradient(img)
     d = ImageDraw.Draw(img)
     sc = lambda v: v * k
-    d.ellipse([sc(300), sc(150), sc(460), sc(310)], fill=SUN)
+    d.ellipse([sc(300), sc(150), sc(460), sc(310)], fill=SUN, outline=INK, width=sc(5))
     # hill
-    d.ellipse([sc(-120), sc(400), sc(632), sc(700)], fill=INK)
-    d.rectangle([0, sc(470), sc(S), sc(S)], fill=INK)
+    d.ellipse([sc(-120), sc(400), sc(632), sc(700)], fill=HILL, outline=INK, width=sc(6))
+    d.rectangle([0, sc(470), sc(S), sc(S)], fill=HILL)
+    d.rectangle([0, sc(472), sc(S), sc(S)], fill=BANNER)  # embroidered border band
+    for i in range(9):
+        cx = 28 + i * 57
+        d.polygon([(sc(cx - 18), sc(492)), (sc(cx), sc(478)), (sc(cx + 18), sc(492)), (sc(cx), sc(506))], fill=SUN, outline=INK)
+    d.line([0, sc(472), sc(S), sc(472)], fill=INK, width=sc(4))
     for x0, y0, x1, y1, w in LINES:
         d.line([sc(x0), sc(y0), sc(x1), sc(y1)], fill=INK, width=sc(w))
         for x, y in ((x0, y0), (x1, y1)):
@@ -91,8 +97,8 @@ def svg(path):
         '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">'
         f'<stop offset="0" stop-color="rgb{SKY_TOP}"/><stop offset="1" stop-color="rgb{SKY_BOTTOM}"/></linearGradient></defs>',
         f'<rect width="{S}" height="{S}" rx="96" fill="url(#g)"/>',
-        f'<circle cx="380" cy="230" r="80" fill="rgb{SUN}"/>',
-        f'<path d="M0 470 Q256 330 512 470 V512 H0Z" fill="rgb{INK}"/>',
+        f'<circle cx="380" cy="230" r="80" fill="rgb{SUN}" stroke="rgb{INK}" stroke-width="5"/>',
+        f'<path d="M0 470 Q256 330 512 470 V512 H0Z" fill="rgb{HILL}" stroke="rgb{INK}" stroke-width="6"/>',
         f'<g stroke="rgb{INK}" stroke-linecap="round" fill="none">',
     ]
     for x0, y0, x1, y1, w in LINES:

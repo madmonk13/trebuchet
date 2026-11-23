@@ -1,6 +1,6 @@
 /* Trebuchet service worker: precaches the game so it plays offline.
  * Bump VERSION whenever you deploy changes so players pick up the new files. */
-const VERSION = 'trebuchet-v3';
+const VERSION = 'trebuchet-v4';
 const FONT_CACHE = 'trebuchet-fonts';
 const ASSETS = [
   './',

@@ -32,7 +32,7 @@ window.LEVELS = (() => {
       name: 'The Watchpost',
       width: 2000,
       rocks: ['stone', 'stone', 'stone'],
-      tip: 'Drag the rock back from the trebuchet and let go to fling it.',
+      tip: 'Draw back on the sling to winch the arm, then let fly. Knock every foe flat!',
       items: [
         ...hut('wood', 1400, 0), foe('soldier', 1400, 0),
         ...hut('wood', 1400, 120), foe('soldier', 1400, 120),

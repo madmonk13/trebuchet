@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <title>Trebuchet</title>
   <meta name="description" content="Trebuchet — a medieval siege physics game. Hurl rocks, topple castles, defeat the knights.">
-  <meta name="theme-color" content="#2b1a0e">
+  <meta name="theme-color" content="#efe2c2">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
@@ -18,7 +18,7 @@
   <meta property="og:description" content="Hurl rocks, topple castles, defeat the knights.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=MedievalSharp&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -31,7 +31,7 @@
       </button>
       <div id="hud-level" class="hud-chip"></div>
     </div>
-    <div class="hud-chip hud-score"><span id="hud-score">0</span></div>
+    <div class="hud-chip hud-score"><svg class="coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M8.5 10.5h7"/></svg><span id="hud-score">0</span></div>
     <div class="hud-right">
       <button id="btn-restart" class="icon-btn" aria-label="Restart level">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7a5 5 0 11-5 5H5a7 7 0 107-7z"/></svg>
@@ -47,24 +47,21 @@
 
   <section id="screen-title" class="screen">
     <div class="panel title-panel">
-      <div class="crest" aria-hidden="true">
-        <svg viewBox="0 0 64 64"><path d="M32 4l24 8v18c0 15-10 25-24 30C18 55 8 45 8 30V12z" fill="#9b2226" stroke="#4a1a10" stroke-width="3"/><path d="M20 46V26h4v4h4v-4h8v4h4v-4h4v20z" fill="#e3b341" stroke="#7a5a10" stroke-width="1.5" stroke-linejoin="round"/><path d="M29 46v-7a3 3 0 016 0v7z" fill="#4a1a10"/></svg>
-      </div>
-      <h1 class="logo">Trebuchet</h1>
-      <p class="tagline">Hurl stone. Topple towers. Humble the knights.</p>
+      <h1 class="logo" aria-label="Trebuchet"><span class="initial" aria-hidden="true">T</span><span aria-hidden="true">rebuchet</span></h1>
+      <p class="tagline">Here the siege engine hurleth stone, and the knights are humbled.</p>
       <div class="btn-col">
         <button id="btn-play" class="btn primary">Play</button>
         <button id="btn-install" class="btn" hidden>Install Game</button>
       </div>
       <p id="ios-hint" class="small" hidden>To install on iPhone or iPad: tap <b>Share</b>, then <b>Add to Home Screen</b>.</p>
-      <p class="small how">Drag the rock back from the sling and release. Tap mid-flight to unleash special shots.</p>
+      <p class="small how">Draw back on the sling to winch the arm, then let fly. Tap mid-flight to loose a special shot. Knock every foe flat to take the castle.</p>
     </div>
   </section>
 
   <section id="screen-levels" class="screen" hidden>
     <div class="panel levels-panel">
       <h2>Choose a Siege</h2>
-      <p class="small">Stars earned: <b id="total-stars">0</b></p>
+      <p class="small">Seals won: <b id="total-stars">0</b></p>
       <div id="set-tabs" class="set-tabs" role="group" aria-label="Level sets"></div>
       <div id="level-grid" class="level-grid"></div>
       <div class="btn-row">
@@ -89,7 +86,7 @@
       <h2 id="result-title">Victory!</h2>
       <p id="result-sub" class="small"></p>
       <div id="result-stars" class="result-stars"></div>
-      <div class="result-score" id="result-score">0</div>
+      <div class="result-score"><span class="label">Plunder</span> <span id="result-score">0</span></div>
       <p id="result-best" class="small"></p>
       <div class="btn-row">
         <button id="btn-result-levels" class="btn">Levels</button>
