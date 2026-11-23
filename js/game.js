@@ -20,6 +20,9 @@
   const MAX_PULL = 125;
   const MIN_PULL = 18;
   const MAX_SPEED = 27;
+  // The resting camera puts the trebuchet near the left edge, keeping just enough ground behind
+  // the sling to draw it back.
+  const CAM_MIN = 225;
   const GRAVITY_STEP = 0.001 * STEP * STEP; // Matter's per-step gravity acceleration
 
   const MATERIALS = {
@@ -56,7 +59,7 @@
     grid: $('level-grid'), mute: $('btn-mute'), install: $('btn-install'), iosHint: $('ios-hint'),
     resultTitle: $('result-title'), resultSub: $('result-sub'), resultScore: $('result-score'),
     resultBest: $('result-best'), resultStars: $('result-stars'), next: $('btn-next'), totalStars: $('total-stars'),
-    setTabs: $('set-tabs'),
+    setTabs: $('set-tabs'), ammo: $('hud-ammo'),
   };
 
   // ---------------------------------------------------------------- storage
@@ -86,8 +89,9 @@
   let abilityUsed = false;
   let launchVel = null, launchFrom = null;
   let shake = 0;
+  let releaseCam = 0; // camera position when the shot was released
   const arm = { angle: COCKED, from: COCKED, to: COCKED, t: 1, dur: 1, ease: (t) => t, next: null };
-  const aim = { active: false, id: null, start: null, vec: { x: 0, y: 0 }, notch: 0 };
+  const aim = { active: false, id: null, start: null, vec: { x: 0, y: 0 }, notch: 0, path: null };
   const pan = { active: false, id: null, sx: 0, cam: 0 };
   const destroyQueue = new Set();
   const explodeQueue = new Set();
@@ -112,13 +116,23 @@
     const targetH = H < 600 ? 720 : 860;
     scale = Math.min(H / targetH, W / 900);
     viewW = W / scale;
+    const insets = getComputedStyle(safeProbe);
+    safeLeft = parseFloat(insets.paddingLeft) || 0;
+    safeTop = parseFloat(insets.paddingTop) || 0;
+    camMin = CAM_MIN - safeLeft / scale;
     viewH = H / scale;
     // On tall (portrait) screens, lift the ground off the bottom edge.
     camY = GROUND_Y + 70 + Math.max(0, viewH - 900) * 0.4 - viewH;
-    camX = clamp(camX, 0, camMax());
+    camX = clamp(camX, camMin, camMax());
     checkOrientation();
   }
-  const camMax = () => Math.max(0, levelW - viewW);
+  // Step the camera back by the left safe-area inset (a phone's notch in landscape) so the
+  // sling never sits underneath it.
+  const safeProbe = document.createElement('div');
+  safeProbe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding-left:env(safe-area-inset-left,0px);padding-top:env(safe-area-inset-top,0px)';
+  document.body.appendChild(safeProbe);
+  let camMin = CAM_MIN, safeLeft = 0, safeTop = 0;
+  const camMax = () => Math.max(camMin, levelW - viewW);
   const toWorld = (cx, cy) => ({ x: cx / scale + camX, y: cy / scale + camY });
 
   let orientationToastShown = false;
@@ -190,7 +204,7 @@
       setState('menu');
     } else {
       camX = camMax();
-      setState(camMax() > 0 ? 'intro' : 'aim');
+      setState(camMax() > camMin ? 'intro' : 'aim');
       if (levelDef.tip) toast(levelDef.tip, 4200);
     }
     updateHint();
@@ -200,6 +214,24 @@
     state = s;
     stateTime = 0;
     updateHint();
+    updateAmmo();
+  }
+
+  // The rocks still waiting their turn, shown as small inked icons in the HUD.
+  const AMMO_ICON = {
+    stone: '<circle cx="12" cy="12" r="8" fill="#a39e92"/>',
+    scatter: '<circle cx="12" cy="12" r="8" fill="#7d8088"/><path d="M12 4.5l.8 7.5-5 4.5M12.8 12l6 2.5" fill="none"/>',
+    boulder: '<circle cx="12" cy="12" r="10.5" fill="#8f897c"/><circle cx="8.5" cy="7.5" r="1.6" fill="#4f8a6e" stroke-width="1"/><circle cx="13" cy="6" r="1.4" fill="#4f8a6e" stroke-width="1"/>',
+    firepot: '<circle cx="12" cy="14.5" r="7.5" fill="#b5562b"/><path d="M10 7c-1-2.5 1-4 2-5.5 1 1.5 3 3 2 5.5z" fill="#a8322d" stroke-width="1.2"/>',
+  };
+  let shownAmmo = '';
+  function updateAmmo() {
+    const key = queue.join(',');
+    if (key === shownAmmo) return;
+    shownAmmo = key;
+    ui.ammo.innerHTML = queue.map((t) => `<svg viewBox="0 0 24 24" class="ammo-${t}" aria-hidden="true"><g stroke="#2a1d14" stroke-width="2">${AMMO_ICON[t] || AMMO_ICON.stone}</g></svg>`).join('');
+    ui.ammo.hidden = !queue.length;
+    ui.ammo.setAttribute('aria-label', `${queue.length} more ${queue.length === 1 ? 'rock' : 'rocks'} after this one`);
   }
 
   // ---------------------------------------------------------------- damage & collisions
@@ -446,6 +478,7 @@
     aim.active = false;
     if (!v || !loaded) return;
     launchVel = v;
+    releaseCam = camX;
     launchFrom = (() => { aim.active = true; const p = slingRockPos(); aim.active = false; return p; })();
     aim.notch = 0;
     armTo(RELEASE, 260, easeIn);
@@ -642,8 +675,8 @@
       // Unused rocks count as bonus points.
       const rocksLeft = [...(loaded ? [loaded] : []), ...queue];
       rocksLeft.forEach((t, i) => {
-        const pos = queuePos(i, rocksLeft);
-        setTimeout(() => { floater(pos.x, pos.y - 30, ROCK_BONUS, '#a8322d', 1.2); sparkle(pos.x, pos.y, '#d9a93b'); }, i * 250);
+        const pos = { x: ANCHOR.x + 70, y: ANCHOR.y - 90 - i * 38 };
+        setTimeout(() => { floater(pos.x, pos.y, ROCK_BONUS, '#a8322d', 1.2); sparkle(pos.x, pos.y, '#d9a93b'); }, i * 250);
       });
       score += left * ROCK_BONUS;
       loaded = null; queue = [];
@@ -663,44 +696,43 @@
     updateHint();
   }
 
-  // Positions of the waiting rocks lined up behind the trebuchet.
-  function queuePos(i, list = queue) {
-    let x = TX - 150;
-    for (let j = 0; j < i; j++) x -= ROCKS[list[j]].r + ROCKS[list[j + 1]].r + 8;
-    return { x, y: GROUND_Y - ROCKS[list[i]].r };
-  }
-
   // ---------------------------------------------------------------- camera
   function updateCamera(dt) {
     const max = camMax();
     if (state === 'menu') {
-      camX = max * (0.5 - 0.5 * Math.cos(realTime * 0.00018));
+      camX = lerp(camMin, max, 0.5 - 0.5 * Math.cos(realTime * 0.00018));
       return;
     }
     if (state === 'intro') {
       const t = clamp((stateTime - 1000) / 1500, 0, 1);
-      camX = lerp(max, 0, easeInOut(t));
+      camX = lerp(max, camMin, easeInOut(t));
       if (t >= 1) setState('aim');
       return;
     }
     let target = camX;
+    aim.path = state === 'aim' && aim.active ? predictShot() : null;
     if (state === 'flight' && activeRocks.length) {
+      // Hold on the spot the shot was aimed at and let the rock fly in; follow it past there.
       const lead = activeRocks.reduce((a, r) => (r.position.x > a.position.x ? r : a));
-      target = lead.position.x - viewW * 0.4;
+      target = Math.max(lead.position.x - viewW * 0.4, releaseCam);
+    } else if (aim.path) {
+      // Glide so the end of the predicted arc stays in view.
+      target = Math.max(camMin, aim.path.end.x + 170 - viewW);
     } else if (state === 'launching') {
-      target = 0;
+      target = camX;
     } else if ((state === 'aim' || state === 'reload') && !pan.active && realTime > camHoldUntil) {
-      target = 0;
+      target = camMin;
     }
     if (!pan.active) camX += (target - camX) * (1 - Math.exp(-dt * 0.005));
-    camX = clamp(camX, 0, max);
+    // While aiming, the camera may run past the castle so an overshoot is seen landing beyond it.
+    camX = clamp(camX, camMin, aim.path ? Math.max(max, levelW + 300 - viewW) : max);
   }
 
   // ---------------------------------------------------------------- input
   function onDown(e) {
     Sfx.unlock();
     if (paused || state === 'menu') return;
-    if (state === 'intro') { setState('aim'); camX = 0; return; }
+    if (state === 'intro') { setState('aim'); camX = camMin; return; }
     if (state === 'flight') { useAbility(); return; }
     const p = toWorld(e.clientX, e.clientY);
     if (state === 'aim' && loaded && !aim.active) {
@@ -709,7 +741,7 @@
       if (d < Math.max(130, 60 / scale)) {
         aim.active = true;
         aim.id = e.pointerId;
-        aim.start = p;
+        aim.start = { x: e.clientX, y: e.clientY };
         aim.vec = { x: 0, y: 0 };
         camHoldUntil = 0;
         capture(e.pointerId);
@@ -725,15 +757,16 @@
 
   function onMove(e) {
     if (aim.active && e.pointerId === aim.id) {
-      const p = toWorld(e.clientX, e.clientY);
-      aim.vec = { x: p.x - aim.start.x, y: p.y - aim.start.y };
+      // Measured on screen, not in the world, so the camera gliding toward the target while
+      // aiming doesn't change the aim under the finger.
+      aim.vec = { x: (e.clientX - aim.start.x) / scale, y: (e.clientY - aim.start.y) / scale };
       const power = aimPower();
       arm.angle = COCKED - power * WINCH;
       // the winch ratchets with a click every fifth of full power
       const notch = Math.floor(power * 5);
       if (notch !== aim.notch) { if (notch > aim.notch) Sfx.click(); aim.notch = notch; }
     } else if (pan.active && e.pointerId === pan.id) {
-      camX = clamp(pan.cam - (e.clientX - pan.sx) / scale, 0, camMax());
+      camX = clamp(pan.cam - (e.clientX - pan.sx) / scale, camMin, camMax());
     }
   }
 
@@ -786,7 +819,6 @@
 
     drawGround();
     for (const b of Composite.allBodies(world)) if (b.plugin.kind === 'hill') drawHill(b);
-    drawQueue();
     drawTrebuchet();
     for (const b of blocks) if (b.plugin.alive) drawBlock(b);
     for (const b of foes) if (b.plugin.alive) drawFoe(b);
@@ -797,6 +829,8 @@
     drawTrajectory();
     drawFloaters();
     drawFrame();
+    drawOffscreenFoes();
+    drawAimGauge();
   }
 
   // Art direction: an illuminated manuscript / embroidered tapestry. Flat medieval pigments on
@@ -1164,66 +1198,77 @@
     }
   }
 
-  function drawQueue() {
-    const list = state === 'won' ? [] : queue;
-    list.forEach((t, i) => {
-      const p = queuePos(i, list);
-      drawRock(t, p.x, p.y, 0);
-    });
-  }
-
-  // While aiming: an inked flight line with an arrowhead, and a brass quadrant showing the angle.
-  function drawTrajectory() {
-    if (!aim.active || state !== 'aim') return;
+  // The predicted flight while aiming, run to the first thing the rock would strike: a block, a
+  // foe, a hill or the ground. Bounding boxes stand in for exact shapes.
+  function predictShot() {
     const v = aimVelocity();
-    if (!v) return;
+    if (!v) return null;
+    const r = ROCKS[loaded].r;
+    const solids = Composite.allBodies(world).filter((b) => b.plugin.kind !== 'ground' && b.plugin.alive !== false);
     let x = LAUNCH.x, y = LAUNCH.y, vx = v.x, vy = v.y;
-    const pts = [[x, y]];
-    for (let i = 0; i < 90; i++) {
+    const pts = [{ x, y }];
+    for (let i = 0; i < 600; i++) {
       vy += GRAVITY_STEP;
       x += vx; y += vy;
-      if (y > GROUND_Y) break;
-      if (i % 2 === 1) pts.push([x, y]);
+      if (i % 2 === 1) pts.push({ x, y });
+      if (y + r >= GROUND_Y || x > levelW + 400) break;
+      if (x > TX + 120 && solids.some((b) => x + r > b.bounds.min.x && x - r < b.bounds.max.x && y + r > b.bounds.min.y && y - r < b.bounds.max.y)) break;
     }
+    const end = { x, y: Math.min(y, GROUND_Y - r) };
+    pts.push(end);
+    return { pts, end, v };
+  }
+
+  // While aiming: the whole inked flight line, with a mark where it strikes.
+  function drawTrajectory() {
+    const path = aim.path;
+    if (!path || state !== 'aim') return;
+    const pts = path.pts;
     ctx.lineCap = 'round';
     ctx.setLineDash([10, 9]);
+    ctx.lineWidth = 3;
     for (let i = 1; i < pts.length; i++) {
-      ctx.strokeStyle = `rgba(42,29,20,${0.85 * (1 - i / pts.length)})`;
-      ctx.lineWidth = 3;
-      line(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]);
+      ctx.strokeStyle = `rgba(42,29,20,${0.85 - 0.45 * (i / pts.length)})`;
+      line(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y);
     }
     ctx.setLineDash([]);
-    if (pts.length > 2) {
-      const [ax, ay] = pts[pts.length - 1], [bx, by] = pts[pts.length - 2];
-      const a = Math.atan2(ay - by, ax - bx);
-      ctx.fillStyle = `rgba(168,50,45,0.6)`;
-      ctx.beginPath();
-      ctx.moveTo(ax + Math.cos(a) * 10, ay + Math.sin(a) * 10);
-      ctx.lineTo(ax + Math.cos(a + 2.5) * 10, ay + Math.sin(a + 2.5) * 10);
-      ctx.lineTo(ax + Math.cos(a - 2.5) * 10, ay + Math.sin(a - 2.5) * 10);
-      ctx.fill();
-    }
+    const { x, y } = path.end;
+    const pulse = 1 + Math.sin(realTime * 0.008) * 0.12;
+    ctx.strokeStyle = PAL.madder;
+    ctx.lineWidth = 3.5;
+    const k = 11 * pulse;
+    line(x - k, y - k, x + k, y + k);
+    line(x - k, y + k, x + k, y - k);
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 20 * pulse, 0, Math.PI * 2); ctx.stroke();
+  }
 
-    // quadrant
-    const len = Math.min(Math.hypot(aim.vec.x, aim.vec.y), MAX_PULL) / MAX_PULL;
+  // The brass quadrant, pinned to the top-left of the screen so it stays readable when the camera
+  // has glided away from the trebuchet toward the target.
+  function drawAimGauge() {
+    const path = aim.path;
+    if (!path || state !== 'aim') return;
+    const v = path.v;
+    const len = aimPower();
     const deg = clamp(Math.round((-Math.atan2(v.y, v.x) * 180) / Math.PI), -30, 90);
-    const qx = TX + 150, qy = 778, R = 84;
+    const R = clamp(84 * scale, 52, 92);
+    const qx = safeLeft + 26, qy = Math.max(safeTop, 12) + 66 + R;
     ctx.beginPath(); ctx.moveTo(qx, qy); ctx.arc(qx, qy, R, -Math.PI / 2, 0); ctx.closePath();
     inked(PAL.gold, 2.5);
-    ctx.beginPath(); ctx.arc(qx, qy, R - 12, -Math.PI / 2, 0); ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(qx, qy, R * 0.86, -Math.PI / 2, 0); ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.stroke();
     for (let d = 0; d <= 90; d += 15) {
-      const a = (-d * Math.PI) / 180;
+      const a = (-d * Math.PI) / 180, inner = R * (d % 45 ? 0.9 : 0.84);
       ctx.lineWidth = d % 45 ? 1.2 : 2.2;
-      line(qx + Math.cos(a) * (R - (d % 45 ? 8 : 12)), qy + Math.sin(a) * (R - (d % 45 ? 8 : 12)), qx + Math.cos(a) * R, qy + Math.sin(a) * R);
+      line(qx + Math.cos(a) * inner, qy + Math.sin(a) * inner, qx + Math.cos(a) * R, qy + Math.sin(a) * R);
     }
     // power fills the quadrant's inner band
-    ctx.beginPath(); ctx.moveTo(qx, qy); ctx.arc(qx, qy, (R - 14) * len, -Math.PI / 2, 0); ctx.closePath();
+    ctx.beginPath(); ctx.moveTo(qx, qy); ctx.arc(qx, qy, R * 0.83 * len, -Math.PI / 2, 0); ctx.closePath();
     ctx.fillStyle = 'rgba(168,50,45,0.35)'; ctx.fill();
     const na = (-Math.max(0, deg) * Math.PI) / 180;
     ctx.strokeStyle = PAL.madder; ctx.lineWidth = 3.5;
     line(qx, qy, qx + Math.cos(na) * (R + 6), qy + Math.sin(na) * (R + 6));
     ctx.beginPath(); ctx.arc(qx, qy, 5, 0, Math.PI * 2); inked(PAL.madder, 1.5);
-    ctx.font = `24px ${CANVAS_SERIF}`;
+    ctx.font = `${Math.round(R * 0.3)}px ${CANVAS_SERIF}`;
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = INK;
     ctx.fillText(`${deg}°`, qx + 8, qy - 8);
@@ -1638,6 +1683,43 @@
     ctx.globalAlpha = 1;
   }
 
+  // Foes beyond the edge of the screen get an inked pennant at that edge, level with them and
+  // carrying their helmet or crown, so the whole target is readable without scrolling.
+  function drawOffscreenFoes() {
+    if (state === 'menu' || state === 'won' || state === 'lost') return;
+    const marks = { left: [], right: [] };
+    for (const f of foes) {
+      if (!f.plugin.alive) continue;
+      const sx = (f.position.x - camX) * scale;
+      const side = sx > W - 6 ? 'right' : sx < 6 ? 'left' : null;
+      if (side) marks[side].push({ k: f.plugin.k, y: (f.position.y - camY) * scale });
+    }
+    const top = 76, bottom = H - 64, gap = 30;
+    for (const side of ['left', 'right']) {
+      const list = marks[side].sort((a, b) => a.y - b.y);
+      // keep the tags from overlapping, then pull them back on screen if they ran off the bottom
+      let y = -Infinity;
+      for (const m of list) { m.y = Math.max(clamp(m.y, top, bottom), y + gap); y = m.y; }
+      const over = y - bottom;
+      if (over > 0) list.forEach((m) => { m.y = Math.max(top, m.y - over); });
+      const dir = side === 'right' ? 1 : -1;
+      const tipX = side === 'right' ? W - 14 : 14;
+      for (const m of list) {
+        ctx.save();
+        ctx.translate(tipX, m.y);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-dir * 12, -13); ctx.lineTo(-dir * 40, -13);
+        ctx.lineTo(-dir * 40, 13); ctx.lineTo(-dir * 12, 13);
+        ctx.closePath();
+        inked(PAL.parch, 2);
+        ctx.translate(-dir * 23, 1);
+        drawHat(m.k, 6.5);
+        ctx.restore();
+      }
+    }
+  }
+
   // A double ink rule around the page.
   function drawFrame() {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -1852,6 +1934,7 @@
     // Test hooks: shoot(angleRad, power 0..1) fires from the aim state; tap() uses the rock's special.
     shoot: (angle, power) => { if (state !== 'aim' || !loaded) return false; aim.vec = { x: -Math.cos(angle) * MAX_PULL * power, y: Math.sin(angle) * MAX_PULL * power }; fire(); return true; },
     tap: () => useAbility(),
+    get aimEnd() { return aim.path && { x: Math.round(aim.path.end.x), y: Math.round(aim.path.end.y) }; }, get camX() { return Math.round(camX); },
     get rocksLeft() { return queue.length + (loaded ? 1 : 0); }, get state() { return state; }, get foes() { return foesAlive; },
     get foePositions() { return foes.filter((f) => f.plugin.alive).map((f) => ({ x: Math.round(f.position.x), y: Math.round(f.position.y) })); } };
 })();

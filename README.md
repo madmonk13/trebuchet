@@ -13,9 +13,9 @@ A medieval siege physics game for the browser. Load your trebuchet, fling rocks 
 
 | Action | How |
 | --- | --- |
-| Aim and fire | Press on the sling and draw back. The arm winches down as power builds, the quadrant shows the angle, and an inked line shows the flight. Let go to fire. |
+| Aim and fire | Press on the sling and draw back. The arm winches down as power builds and the quadrant in the corner shows the angle. An inked line traces the whole flight, and the view glides to keep its end in sight, marked where the rock will strike. Let go to fire. |
 | Special shot | Tap anywhere while the rock is in the air |
-| Look around | Drag the background left or right |
+| Look around | Pennants at the screen edge mark any foe out of view; drag the background to look at them. |
 | Pause / restart | Buttons in the top corners, or `Esc` and `R` |
 
 ## Run it locally

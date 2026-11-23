@@ -95,6 +95,10 @@ button { font: inherit; color: inherit; }
   font-variant-numeric: tabular-nums;
   flex: 0 0 auto;
 }
+.hud-ammo { display: flex; align-items: center; gap: 2px; padding: 4px 8px; flex: 0 0 auto; }
+.hud-ammo[hidden] { display: none; }
+.hud-ammo svg { width: 20px; height: 20px; }
+.hud-ammo .ammo-boulder { width: 24px; height: 24px; }
 .coin { width: 20px; height: 20px; flex: 0 0 auto; }
 .coin circle { fill: var(--gold); stroke: var(--ink); stroke-width: 2; }
 .coin path { stroke: var(--ink); stroke-width: 1.6; fill: none; stroke-linecap: round; }
@@ -364,4 +368,6 @@ h2 {
   .hud-score { font-size: 17px; }
   .icon-btn { width: 40px; height: 40px; }
   #hud-level { display: none; }
+  .hud-ammo svg { width: 16px; height: 16px; }
+  .hud-ammo .ammo-boulder { width: 19px; height: 19px; }
 }
